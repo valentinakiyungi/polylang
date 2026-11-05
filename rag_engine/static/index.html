@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cross-Lingual RAG</title>
+<style>
+:root{
+  --bg:#f6f5f1;--panel:#ffffff;--ink:#1d1d1b;--muted:#6b6a65;--line:#e3e1da;
+  --accent:#0f6e5c;--accent-ink:#ffffff;--hit:#0f6e5c;--miss:#9a5b00;--warn:#b42318;
+  --chip:#efede6;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#141413;--panel:#1d1d1b;--ink:#ecebe6;--muted:#a09f99;--line:#2f2e2b;
+  --accent:#3fb39a;--accent-ink:#0c1a17;--hit:#3fb39a;--miss:#e0a64a;--warn:#f0857a;--chip:#2a2926;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid var(--line)}
+h1{font-size:17px;margin:0;letter-spacing:-.01em}
+h1 small{color:var(--muted);font-weight:400;margin-left:8px}
+nav{display:flex;gap:4px}
+nav button{background:none;border:0;color:var(--muted);padding:7px 12px;border-radius:7px;cursor:pointer;font:inherit}
+nav button.active{background:var(--chip);color:var(--ink)}
+main{max-width:920px;margin:0 auto;padding:24px 16px 64px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px}
+textarea,input,select{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+textarea{resize:vertical;min-height:84px}
+textarea:focus,input:focus,select:focus{outline:2px solid var(--accent);outline-offset:-1px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:10px}
+.row>*{flex:1 1 140px}
+.row .grow{flex:3 1 260px}
+label.check{display:flex;gap:6px;align-items:center;flex:0 0 auto;color:var(--muted)}
+label.check input{width:auto}
+button.primary{background:var(--accent);color:var(--accent-ink);border:0;border-radius:8px;padding:10px 18px;font:inherit;font-weight:600;cursor:pointer;flex:0 0 auto}
+button.primary:disabled{opacity:.5;cursor:wait}
+button.ghost{background:none;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:6px 12px;font:inherit;cursor:pointer}
+button.danger{color:var(--warn)}
+.badge{display:inline-block;font-size:12px;font-weight:600;padding:2px 9px;border-radius:99px;background:var(--chip)}
+.badge.hit{color:var(--hit)}.badge.miss{color:var(--miss)}.badge.none{color:var(--muted)}
+.meta{color:var(--muted);font-size:13px}
+.answer{font-size:16px;white-space:pre-wrap;margin:12px 0 4px}
+.source{border-top:1px solid var(--line);padding:12px 0}
+.source:first-child{border-top:0}
+.source .head{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.source .text{color:var(--muted);font-size:14px;margin-top:4px}
+.mono{font-family:var(--mono);font-size:12px}
+.drop{border:2px dashed var(--line);border-radius:10px;padding:26px;text-align:center;color:var(--muted);cursor:pointer}
+.drop.over{border-color:var(--accent);color:var(--ink)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:500;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.stat{background:var(--bg);border-radius:9px;padding:10px 12px}
+.stat b{display:block;font-size:22px}
+.stat span{color:var(--muted);font-size:12px}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:8px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw}
+.toast.show{opacity:1}
+.hidden{display:none}
+#keyBox{display:flex;gap:6px;align-items:center}
+#keyBox input{width:180px;padding:6px 10px}
+.examples{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.examples button{background:var(--chip);border:0;border-radius:99px;padding:4px 11px;font:inherit;font-size:13px;color:var(--ink);cursor:pointer}
+@media (max-width:600px){header{padding:14px 16px}#keyBox input{width:130px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Cross-Lingual RAG <small id="version"></small></h1>
+  <nav>
+    <button data-tab="ask" class="active">Ask</button>
+    <button data-tab="docs">Documents</button>
+    <button data-tab="cache">Cache</button>
+  </nav>
+  <div id="keyBox" class="hidden"><input id="apiKey" type="password" placeholder="API key"></div>
+</header>
+
+<main>
+  <!-- ASK -->
+  <section id="tab-ask">
+    <div class="panel">
+      <textarea id="q" placeholder="Ask in any language — English, Kiswahili, Русский, Français…"></textarea>
+      <div class="examples" id="examples"></div>
+      <div class="row">
+        <input id="qCollection" placeholder="Collection (all)">
+        <input id="qTopK" type="number" min="1" max="50" placeholder="Top-k (default)">
+        <label class="check"><input id="qCache" type="checkbox" checked> Use cache</label>
+        <button class="primary" id="askBtn">Ask</button>
+      </div>
+    </div>
+    <div id="result" class="panel hidden"></div>
+  </section>
+
+  <!-- DOCS -->
+  <section id="tab-docs" class="hidden">
+    <div class="panel">
+      <div class="drop" id="drop">Drop files here or click to upload<br>
+        <span class="meta">.txt .md .pdf .docx .html .csv .json .jsonl</span></div>
+      <input type="file" id="fileInput" multiple class="hidden">
+      <div class="row"><input id="upCollection" placeholder="Collection (default)"></div>
+    </div>
+    <div class="panel">
+      <input id="docTitle" placeholder="Title (optional)">
+      <textarea id="docText" placeholder="…or paste text to add as a document" style="margin-top:10px"></textarea>
+      <div class="row"><input id="docCollection" placeholder="Collection (default)"><button class="primary" id="addDocBtn">Add document</button></div>
+    </div>
+    <div class="panel">
+      <div class="row" style="margin-top:0"><b class="grow" id="docCount">Documents</b>
+        <button class="ghost danger" id="resetBtn" style="flex:0 0 auto">Delete all</button></div>
+      <table><thead><tr><th>Title</th><th>Lang</th><th>Collection</th><th>Chunks</th><th></th></tr></thead>
+        <tbody id="docRows"></tbody></table>
+    </div>
+  </section>
+
+  <!-- CACHE -->
+  <section id="tab-cache" class="hidden">
+    <div class="panel"><div class="stats" id="stats"></div></div>
+    <div class="panel">
+      <div class="row" style="margin-top:0"><b class="grow">Cached answers</b>
+        <button class="ghost danger" id="clearCacheBtn" style="flex:0 0 auto">Clear cache</button></div>
+      <table><thead><tr><th>Query</th><th>Lang</th><th>Hits</th><th></th></tr></thead><tbody id="cacheRows"></tbody></table>
+    </div>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let authRequired = false;
+function store(k, v){ try{ v===undefined ? null : localStorage.setItem(k, v); return localStorage.getItem(k);}catch(e){return null;} }
+
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("show"),3200); }
+
+async function api(path, opts={}){
+  const headers = Object.assign({}, opts.headers||{});
+  const key = $("#apiKey").value.trim();
+  if (key) headers["X-API-Key"] = key;
+  if (opts.json !== undefined){ headers["Content-Type"]="application/json"; opts.body=JSON.stringify(opts.json); }
+  const res = await fetch(path, {...opts, headers});
+  const body = await res.json().catch(()=>({}));
+  if (!res.ok){
+    let d = body.detail; if (Array.isArray(d)) d = d.map(x=>x.msg||x.error||JSON.stringify(x)).join("; ");
+    throw new Error(d || res.statusText);
+  }
+  return body;
+}
+
+// tabs
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("active", x===b));
+  ["ask","docs","cache"].forEach(t => $("#tab-"+t).classList.toggle("hidden", t!==b.dataset.tab));
+  if (b.dataset.tab==="docs") loadDocs();
+  if (b.dataset.tab==="cache") loadCache();
+});
+
+// ask
+const EXAMPLES = ["How does semantic caching reduce latency?","Je, semantic caching hupunguzaje muda wa kusubiri?",
+  "Как семантический кэш снижает задержку?","What is hybrid retrieval?"];
+$("#examples").innerHTML = EXAMPLES.map(e=>`<button>${esc(e)}</button>`).join("");
+$("#examples").onclick = e => { if(e.target.tagName==="BUTTON"){ $("#q").value=e.target.textContent; ask(); } };
+$("#askBtn").onclick = ask;
+$("#q").addEventListener("keydown", e => { if(e.key==="Enter" && (e.metaKey||e.ctrlKey)) ask(); });
+
+async function ask(){
+  const query = $("#q").value.trim(); if(!query) return;
+  const btn = $("#askBtn"); btn.disabled = true; btn.textContent = "Thinking…";
+  try{
+    const body = {query, use_cache: $("#qCache").checked};
+    const k = parseInt($("#qTopK").value); if (k) body.top_k = k;
+    const c = $("#qCollection").value.trim(); if (c) body.collection = c;
+    renderResult(await api("/query", {method:"POST", json:body}));
+  }catch(e){ toast(e.message); }
+  finally{ btn.disabled=false; btn.textContent="Ask"; }
+}
+
+function renderResult(r){
+  const cls = r.status==="cache_hit" ? "hit" : r.status==="cache_miss" ? "miss" : "none";
+  const label = {cache_hit:"Cache hit", cache_miss:"Cache miss → retrieved", no_context:"No context"}[r.status];
+  let cacheInfo = "";
+  if (r.cache) cacheInfo = `<div class="meta">Matched <i>“${esc(r.cache.matched_query)}”</i> (${esc(r.cache.matched_language)}) · similarity ${r.cache.similarity}</div>`;
+  const timing = Object.entries(r.timings_ms||{}).map(([k,v])=>`${k} ${v}ms`).join(" · ");
+  const warn = (r.warnings||[]).map(w=>`<div class="meta" style="color:var(--warn)">${esc(w)}</div>`).join("");
+  const sources = (r.sources||[]).map(s=>`<div class="source"><div class="head"><b>[${s.rank}] ${esc(s.title)}</b>
+      <span class="badge">${esc(s.language)}</span>
+      <span class="mono meta">score ${s.score.toFixed(4)}${s.dense_score!=null?` · dense ${s.dense_score.toFixed(3)}`:""}${s.sparse_score!=null?` · bm25 ${s.sparse_score.toFixed(2)}`:""}</span></div>
+      <div class="text">${esc(s.text.length>420 ? s.text.slice(0,420)+"…" : s.text)}</div></div>`).join("");
+  const el = $("#result"); el.classList.remove("hidden");
+  el.innerHTML = `<span class="badge ${cls}">${label}</span> <span class="badge">${esc(r.language)}</span>
+    <span class="meta">${esc(r.generator)}</span>${cacheInfo}${warn}
+    <div class="answer">${esc(r.answer)}</div><div class="meta mono">${esc(timing)}</div>
+    ${sources ? `<h3 style="font-size:14px;margin:18px 0 4px">Sources</h3>${sources}` : ""}`;
+}
+
+// documents
+const drop = $("#drop"), fileInput = $("#fileInput");
+drop.onclick = () => fileInput.click();
+drop.ondragover = e => { e.preventDefault(); drop.classList.add("over"); };
+drop.ondragleave = () => drop.classList.remove("over");
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove("over"); upload(e.dataTransfer.files); };
+fileInput.onchange = () => { upload(fileInput.files); fileInput.value=""; };
+
+async function upload(files){
+  if (!files.length) return;
+  const fd = new FormData(); for (const f of files) fd.append("files", f);
+  fd.append("collection", $("#upCollection").value.trim() || "default");
+  drop.textContent = "Uploading and indexing…";
+  try{
+    const r = await api("/documents/upload", {method:"POST", body:fd});
+    toast(`Indexed ${r.ingested.length} document(s)` + (r.errors.length ? `, ${r.errors.length} failed` : ""));
+    r.errors.forEach(e => console.warn(e));
+    loadDocs();
+  }catch(e){ toast(e.message); }
+  finally{ drop.innerHTML = 'Drop files here or click to upload<br><span class="meta">.txt .md .pdf .docx .html .csv .json .jsonl</span>'; }
+}
+
+$("#addDocBtn").onclick = async () => {
+  const text = $("#docText").value.trim(); if(!text) return toast("Paste some text first");
+  try{
+    const r = await api("/documents", {method:"POST", json:{collection: $("#docCollection").value.trim()||"default",
+      documents:[{text, title: $("#docTitle").value.trim() || null}]}});
+    toast(r.ingested[0].created ? "Document added" : "Identical document already indexed");
+    $("#docText").value=""; $("#docTitle").value=""; loadDocs();
+  }catch(e){ toast(e.message); }
+};
+
+async function loadDocs(){
+  try{
+    const r = await api("/documents");
+    $("#docCount").textContent = `Documents (${r.count})`;
+    $("#docRows").innerHTML = r.documents.map(d=>`<tr><td>${esc(d.title)}<div class="meta mono">${esc(d.id)}</div></td>
+      <td>${esc(d.language)}</td><td>${esc(d.collection)}</td><td>${d.chunk_count}</td>
+      <td><button class="ghost danger" data-del="${esc(d.id)}">Delete</button></td></tr>`).join("")
+      || `<tr><td colspan="5" class="meta">No documents yet.</td></tr>`;
+  }catch(e){ toast(e.message); }
+}
+$("#docRows").onclick = async e => {
+  const id = e.target.dataset.del; if(!id) return;
+  try{ await api(`/documents/${encodeURIComponent(id)}`, {method:"DELETE"}); toast("Deleted"); loadDocs(); }catch(err){ toast(err.message); }
+};
+$("#resetBtn").onclick = async () => {
+  if(!confirm("Delete every document and clear the cache?")) return;
+  try{ await api("/documents?confirm=true", {method:"DELETE"}); toast("Knowledge base cleared"); loadDocs(); }catch(e){ toast(e.message); }
+};
+
+// cache
+async function loadCache(){
+  try{
+    const [s, c] = await Promise.all([api("/stats"), api("/cache")]);
+    const cs = s.cache;
+    const tiles = [[s.documents,"documents"],[s.chunks,"chunks"],[cs.entries,"cached answers"],
+      [(cs.hit_rate*100).toFixed(1)+"%","hit rate"],[cs.hits,"hits"],[cs.misses,"misses"],[cs.threshold,"threshold"]];
+    $("#stats").innerHTML = tiles.map(([v,l])=>`<div class="stat"><b>${esc(v)}</b><span>${l}</span></div>`).join("")
+      + `<div class="stat" style="grid-column:1/-1"><span>Embedder</span> <span class="mono">${esc(s.embedder)}</span> · <span>Generator</span> <span class="mono">${esc(s.generator)}</span></div>`;
+    $("#cacheRows").innerHTML = c.entries.map(e=>`<tr><td>${esc(e.query)}<div class="meta">${esc(e.answer_preview)}</div></td>
+      <td>${esc(e.language)}</td><td>${e.hits}</td><td><button class="ghost danger" data-del="${esc(e.id)}">Remove</button></td></tr>`).join("")
+      || `<tr><td colspan="4" class="meta">Cache is empty.</td></tr>`;
+  }catch(e){ toast(e.message); }
+}
+$("#cacheRows").onclick = async e => {
+  const id = e.target.dataset.del; if(!id) return;
+  try{ await api(`/cache/${id}`, {method:"DELETE"}); loadCache(); }catch(err){ toast(err.message); }
+};
+$("#clearCacheBtn").onclick = async () => {
+  try{ const r = await api("/cache", {method:"DELETE"}); toast(`Cleared ${r.cleared} entries`); loadCache(); }catch(e){ toast(e.message); }
+};
+
+// boot
+$("#apiKey").value = store("rag_api_key") || "";
+$("#apiKey").onchange = () => store("rag_api_key", $("#apiKey").value.trim());
+api("/health").then(h => {
+  $("#version").textContent = "v" + h.version;
+  authRequired = h.auth_required; $("#keyBox").classList.toggle("hidden", !authRequired);
+}).catch(()=>toast("Server unreachable"));
+</script>
+</body>
+</html>

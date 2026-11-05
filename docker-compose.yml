@@ -1,0 +1,28 @@
+services:
+  rag:
+    build: .
+    image: cross-lingual-rag-engine:latest
+    ports:
+      - "8001:8001"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      RAG_DATA_DIR: /app/storage
+    volumes:
+      - rag-storage:/app/storage
+    restart: unless-stopped
+
+  # Optional local LLM. Start with: docker compose --profile ollama up
+  # then set RAG_LLM_PROVIDER=ollama and RAG_LLM_BASE_URL=http://ollama:11434 in .env
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["ollama"]
+    volumes:
+      - ollama-models:/root/.ollama
+    ports:
+      - "11434:11434"
+
+volumes:
+  rag-storage:
+  ollama-models:

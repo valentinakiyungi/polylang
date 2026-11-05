@@ -1,56 +1,238 @@
 # 🌐 Cross-Lingual Semantic Cache & Hybrid RAG Engine
 
-[![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.100%2B-009688.svg)](https://fastapi.tiangolo.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![CI](https://github.com/valentinakiyungi/cross-lingual-rag-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/valentinakiyungi/cross-lingual-rag-engine/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.110%2B-009688.svg)](https://fastapi.tiangolo.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-A high-performance Retrieval-Augmented Generation (RAG) middleware designed to drastically slash LLM latency and compute costs by caching semantically equivalent queries across multiple languages (English, Swahili, Russian, and more).
+A self-hosted Retrieval-Augmented Generation service for multilingual knowledge bases.
+Ask in English, Kiswahili, Russian, French or 50+ other languages and get answers grounded in
+your own documents — whatever language those documents are written in.
 
----
+A **cross-lingual semantic cache** sits in front of the pipeline: if someone already asked
+the same thing (in any language, in any wording), the stored answer comes back in
+milliseconds and no retrieval or LLM call is made.
 
-## 🏗️ Architecture
+```
+                       ┌──────────────────────────┐
+  question (any lang) ─▶ multilingual embedding   │
+                       └────────────┬─────────────┘
+                                    ▼
+                       ┌──────────────────────────┐  hit (cosine ≥ threshold)
+                       │   semantic cache (LRU,   ├──────────────────────────▶ cached answer
+                       │   TTL, cross-lingual)    │
+                       └────────────┬─────────────┘
+                                    │ miss
+                    ┌───────────────┴────────────────┐
+                    ▼                                ▼
+          dense vector search                 BM25 keyword search
+          (meaning, any language)             (exact names, codes)
+                    └───────────────┬────────────────┘
+                                    ▼
+                    reciprocal-rank fusion  →  top-k passages
+                                    ▼
+             generator: extractive │ OpenAI │ Anthropic │ Ollama
+                                    ▼
+                answer in the question's language + cited sources ──▶ stored in cache
+```
 
-* **Semantic Cache:** Uses multilingual sentence embeddings (`paraphrase-multilingual-MiniLM-L12-v2`) and cosine similarity to serve instant cache hits for paraphrased or cross-lingual queries.
-* **Hybrid Retrieval:** Falls back to a combined dense vector and sparse keyword (`BM25`) search pipeline on cache misses.
+## Features
 
----
+- **Document ingestion** – upload `.txt .md .pdf .docx .html .csv .json .jsonl`, paste text,
+  or ingest whole folders from the CLI. Documents are split into overlapping, sentence-aligned
+  chunks; language is detected per document and per chunk; duplicates are skipped.
+- **Hybrid retrieval** – dense multilingual embeddings + an incremental BM25 index, merged with
+  reciprocal rank fusion (or a weighted min-max blend). Filter by collection.
+- **Cross-lingual semantic cache** – vectorised lookup, configurable threshold, LRU eviction,
+  TTL, per-collection scoping, hit statistics. It is invalidated automatically whenever the
+  knowledge base changes, so it never serves stale answers.
+- **Pluggable answer generation**
+  - `extractive` (default) – no LLM, no API key: picks the most relevant sentences and cites them.
+  - `openai` – OpenAI or any OpenAI-compatible endpoint (vLLM, LM Studio, OpenRouter, …).
+  - `anthropic` – Claude via the Messages API.
+  - `ollama` – local models.
+  LLM answers are written in the question's language and cite passages as `[1]`, `[2]`.
+  If the LLM call fails, the engine falls back to an extractive answer and reports a warning.
+- **Persistence** – documents, vectors and cache are saved to disk and reloaded on start. Switching
+  embedding models triggers an automatic re-embed.
+- **Web UI, REST API, CLI** – a built-in single-page UI at `/`, interactive API docs at `/docs`,
+  and a `rag-engine` command.
+- **Production bits** – optional API-key auth, CORS, upload limits, Docker image with the model
+  baked in, health check, GitHub Actions CI.
 
-## 🚀 Quick Start
-
-### 1. Setup Environment
-
-Clone the repository and set up a virtual environment:
+## Quick start
 
 ```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install sentence-transformers rank_bm25 numpy fastapi uvicorn pydantic
+git clone https://github.com/valentinakiyungi/cross-lingual-rag-engine.git
+cd cross-lingual-rag-engine
+python3 -m venv venv && source venv/bin/activate
+pip install -e ".[files]"
+
+rag-engine ingest data/samples/knowledge_base.jsonl   # optional sample data
+rag-engine serve                                      # http://127.0.0.1:8001
 ```
 
-### 2. Run Server
+Open **http://127.0.0.1:8001** for the web UI, or **/docs** for the API explorer.
+The first start downloads the embedding model (~470 MB) from Hugging Face.
 
-Start the FastAPI development server:
+The old entry point still works: `uvicorn main:app --port 8001`.
 
-```Bash
-uvicorn main:app --reload --port 8001
+### Docker
+
+```bash
+cp .env.example .env        # optional
+docker compose up --build   # http://localhost:8001
 ```
 
-### 3. Test API
+Data lives in the `rag-storage` volume. For a fully local LLM:
+`docker compose --profile ollama up`, then `docker compose exec ollama ollama pull llama3.1`
+and set `RAG_LLM_PROVIDER=ollama`, `RAG_LLM_BASE_URL=http://ollama:11434` in `.env`.
 
-Send a test query to the endpoint using curl:
+## Using it
 
-```Bash
-curl -X POST [http://127.0.0.1:8001/query](http://127.0.0.1:8001/query) \
-  -H "Content-Type: application/json" \
-  -d '{"query": "How do high-throughput AI systems use Rust and PyTorch?"}'
+### CLI
+
+```bash
+rag-engine ingest ./docs ./notes.pdf -c handbook     # files or folders, into a collection
+rag-engine query "Je, semantic caching hufanyaje kazi?"
+rag-engine query "How does semantic caching work?"   # → cache hit from the Swahili question
+rag-engine query "What is BM25?" -k 6 --no-cache --json
+rag-engine list
+rag-engine delete <doc-id>
+rag-engine stats
+rag-engine clear-cache
 ```
 
-## 🛠️ Tech Stack
+Add `--offline` to any command to use the dependency-free hashing embedder (see below).
 
-* **Web Framework:** FastAPI & Uvicorn
+### REST API
 
-* **Embeddings:** Hugging Face sentence-transformers (paraphrase-multilingual-MiniLM-L12-v2)
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/query` | Ask a question (cache → hybrid retrieval → generation) |
+| `POST` | `/retrieve` | Retrieval only, no generation |
+| `POST` | `/documents` | Add documents as JSON |
+| `POST` | `/documents/upload` | Upload files (multipart, field `files`, optional `collection`) |
+| `GET` | `/documents` | List documents (`?collection=`) |
+| `GET` | `/documents/{id}` | One document with its chunks |
+| `DELETE` | `/documents/{id}` | Delete a document |
+| `DELETE` | `/documents?confirm=true` | Delete everything |
+| `GET` | `/cache` | Cached answers |
+| `DELETE` | `/cache`, `/cache/{id}` | Clear the cache / one entry |
+| `GET` | `/stats` | Index and cache statistics |
+| `GET` | `/health` | Liveness (never needs a key) |
 
-* **Keyword Search:** rank_bm25
+```bash
+curl -X POST http://127.0.0.1:8001/documents -H "Content-Type: application/json" -d '{
+  "collection": "faq",
+  "documents": [{"id": "refunds", "title": "Refund policy",
+                 "text": "Refunds are issued within 14 days of purchase."}]
+}'
 
-* **Data Validation:** Pydantic & NumPy
+curl -X POST http://127.0.0.1:8001/documents/upload -F "files=@handbook.pdf" -F "collection=faq"
+
+curl -X POST http://127.0.0.1:8001/query -H "Content-Type: application/json" \
+  -d '{"query": "Ninaweza kurudishiwa pesa baada ya siku ngapi?", "collection": "faq"}'
+```
+
+A query response looks like:
+
+```json
+{
+  "query": "How does semantic caching work?",
+  "language": "en",
+  "status": "cache_hit",
+  "answer": "Semantic caching reduces LLM latency and cost by reusing answers ... [1]",
+  "cache": {"similarity": 0.9312, "matched_query": "Je, semantic caching hufanyaje kazi?",
+            "matched_language": "sw", "hits": 1, "entry_id": "3f0c9a1b2d4e"},
+  "sources": [{"rank": 1, "title": "Semantic caching", "language": "en", "score": 0.0328,
+               "dense_score": 0.71, "sparse_score": 6.2, "text": "...", "doc_id": "cache-en",
+               "chunk_id": "cache-en:0"}],
+  "generator": "extractive",
+  "warnings": [],
+  "timings_ms": {"embed": 11.4, "cache_lookup": 0.08, "total": 11.6}
+}
+```
+
+`status` is `cache_hit`, `cache_miss` (answered through retrieval) or `no_context`.
+
+### Python
+
+```python
+from rag_engine import RAGEngine, Settings
+
+engine = RAGEngine(Settings.from_env(llm_provider="ollama", llm_model="llama3.1"))
+engine.ingest_path("docs/")
+result = engine.query("Как работает гибридный поиск?")
+print(result.answer, [s.title for s in result.sources])
+```
+
+## Configuration
+
+All settings come from environment variables (or a `.env` file); see
+[`.env.example`](.env.example) for the full list.
+
+| Variable | Default | Notes |
+|---|---|---|
+| `RAG_DATA_DIR` | `./storage` | Where documents, vectors and cache are saved |
+| `RAG_EMBEDDING_BACKEND` | `sentence-transformers` | `hashing` = offline fallback |
+| `RAG_EMBEDDING_MODEL` | `paraphrase-multilingual-MiniLM-L12-v2` | Any sentence-transformers model |
+| `RAG_CHUNK_SIZE` / `RAG_CHUNK_OVERLAP` | `800` / `120` | Characters |
+| `RAG_TOP_K` | `4` | Passages per answer |
+| `RAG_FUSION` | `rrf` | `rrf` or `weighted` |
+| `RAG_DENSE_WEIGHT` | `0.6` | Dense vs BM25 balance |
+| `RAG_CACHE_THRESHOLD` | `0.88` | Cosine similarity needed for a hit |
+| `RAG_CACHE_CROSS_LINGUAL` | `true` | `false` = only reuse answers within the same language |
+| `RAG_CACHE_TTL_SECONDS` | `86400` | `0` = never expire |
+| `RAG_LLM_PROVIDER` | `extractive` | `openai`, `anthropic`, `ollama` |
+| `RAG_LLM_MODEL` | provider default | e.g. `gpt-4o-mini`, `claude-haiku-5-5`, `llama3.1` |
+| `RAG_LLM_BASE_URL` | provider default | For OpenAI-compatible servers / Ollama |
+| `RAG_LLM_API_KEY` | – | Falls back to `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` |
+| `RAG_API_KEY` | – | If set, requests need header `X-API-Key` |
+
+**Choosing the cache threshold.** Higher is safer (fewer wrong reuses), lower saves more calls.
+With the default model, 0.85–0.90 works well for paraphrases; cross-lingual pairs of the same
+question typically score 0.85–0.95. Watch `hit_rate` in `/stats` and adjust.
+
+**Cross-lingual cache hits return the cached answer as written.** If an English question hits an
+answer that was generated for a Swahili question, you get the Swahili answer (the response says
+so in `cache.matched_language`). Set `RAG_CACHE_CROSS_LINGUAL=false` if answers must always be in
+the asker's language.
+
+### Offline / lightweight mode
+
+`RAG_EMBEDDING_BACKEND=hashing` (or `--offline`) swaps the neural model for a character n-gram
+hashing embedder that needs only NumPy. Retrieval, caching, the API and the UI all work, but
+matching is lexical, so it is **not** cross-lingual. It is used by the test suite and is handy
+on machines without PyTorch.
+
+## Development
+
+```bash
+pip install -e ".[files,dev]"
+pytest          # runs offline with the hashing embedder
+ruff check rag_engine tests
+```
+
+Project layout:
+
+```
+rag_engine/
+  engine.py        orchestration: ingest, retrieve, cache, generate, persist
+  cache.py         cross-lingual semantic cache
+  bm25.py          incremental BM25 index
+  vector_store.py  dense index
+  embeddings.py    sentence-transformers + hashing embedders
+  llm.py           extractive / OpenAI / Anthropic / Ollama generators
+  chunking.py      sentence-aligned chunking
+  loaders.py       file parsers
+  text.py          tokenisation and language detection
+  api.py           FastAPI routes      server.py  ASGI entry point
+  cli.py           rag-engine command  static/    web UI
+tests/             pytest suite
+data/samples/      multilingual sample knowledge base
+```
+
+## License
+
+[MIT](LICENSE)
