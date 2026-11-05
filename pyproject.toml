@@ -34,7 +34,7 @@ dev = ["pytest>=8.0", "httpx>=0.27", "ruff>=0.5"]
 polylang = "polylang.cli:main"
 
 [project.urls]
-Repository = "https://github.com/Valentina14142000/polylang"
+Repository = "https://github.com/valentinakiyungi/polylang"
 
 [tool.setuptools.packages.find]
 include = ["polylang*"]

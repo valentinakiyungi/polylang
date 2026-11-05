@@ -2,7 +2,7 @@
 
 **Ask in any language. Answer from every language.**
 
-[![CI](https://github.com/Valentina14142000/polylang/actions/workflows/ci.yml/badge.svg)](https://github.com/Valentina14142000/polylang/actions/workflows/ci.yml)
+[![CI](https://github.com/valentinakiyungi/polylang/actions/workflows/ci.yml/badge.svg)](https://github.com/valentinakiyungi/polylang/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110%2B-009688.svg)](https://fastapi.tiangolo.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -65,7 +65,7 @@ milliseconds and no retrieval or LLM call is made.
 ## Quick start
 
 ```bash
-git clone https://github.com/Valentina14142000/polylang.git
+git clone https://github.com/valentinakiyungi/polylang.git
 cd polylang
 python3 -m venv venv && source venv/bin/activate
 pip install -e ".[files]"
