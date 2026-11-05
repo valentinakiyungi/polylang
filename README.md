@@ -13,6 +13,7 @@ and a cross-lingual semantic cache.
 [![Docker](https://img.shields.io/badge/docker-ready-2496ED.svg?logo=docker&logoColor=white)](#docker)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 
+[Website](https://valentinakiyungi.github.io/polylang/) ·
 [Quick start](#quick-start) ·
 [Features](#features) ·
 [How it works](#how-it-works) ·
@@ -371,6 +372,7 @@ polylang/
 tests/                Test suite
 data/samples/         Multilingual sample knowledge base
 docs/images/          Screenshots
+site/                 Project website, published to GitHub Pages
 ```
 
 ## Contributing

@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Polylang · Multilingual question answering with a semantic cache</title>
+<meta name="description" content="Polylang is a self-hosted question-answering service for multilingual knowledge bases. Ask in any language, get cited answers from documents in every language, and reuse answers across languages with a semantic cache.">
+<meta property="og:title" content="Polylang">
+<meta property="og:description" content="Ask in any language. Answer from every language. Self-hosted, open-source multilingual RAG with hybrid search and a cross-lingual semantic cache.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="images/desktop.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236A4BC4'/%3E%3Cpath d='M9 22V10h6.5a4 4 0 0 1 0 8H9' fill='none' stroke='white' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='22.5' cy='22' r='2' fill='white'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400;1,6..72,500&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F3F5F4; --surface:#FFFFFF; --sunken:#E8EDEB; --ink:#18222A; --muted:#56636B; --line:#D9E0DE;
+  --accent:#6A4BC4; --accent-ink:#4E34A0; --accent-soft:#ECE6FA; --on-accent:#FFFFFF;
+  --gold:#8A6108; --gold-soft:#F6EBD2;
+  --code-bg:#18222A; --code-ink:#E5EBEE; --code-muted:#93A1A9;
+  --serif:"Newsreader", "Iowan Old Style", Georgia, serif;
+  --sans:"Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  --wrap:1120px;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#12171B; --surface:#1A2126; --sunken:#151B1F; --ink:#E5EBEE; --muted:#9AA7AE; --line:#29333A;
+    --accent:#A68CF0; --accent-ink:#C2B0F7; --accent-soft:#2A2440; --on-accent:#15111F;
+    --gold:#E0B44C; --gold-soft:#2E2817; --code-bg:#0D1114;
+  }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 var(--sans);-webkit-font-smoothing:antialiased}
+a{color:var(--accent-ink)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:6px}
+img{max-width:100%;height:auto;display:block}
+.wrap{max-width:var(--wrap);margin:0 auto;padding:0 24px}
+svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* ------------------------------------------------------------- nav */
+.nav{position:sticky;top:0;z-index:10;background:color-mix(in srgb, var(--bg) 86%, transparent);
+  backdrop-filter:saturate(1.4) blur(12px);-webkit-backdrop-filter:saturate(1.4) blur(12px);border-bottom:1px solid transparent;transition:border-color .2s}
+.nav.scrolled{border-bottom-color:var(--line)}
+.nav .wrap{display:flex;align-items:center;gap:28px;height:64px}
+.brand{display:flex;align-items:center;gap:10px;color:var(--ink);text-decoration:none}
+.mark{width:30px;height:30px;border-radius:8px;background:var(--accent);display:grid;place-items:center}
+.mark svg{width:19px;height:19px;stroke:var(--on-accent);stroke-width:2.6;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.brand b{font:italic 500 25px/1 var(--serif);letter-spacing:-.01em}
+.links{display:flex;gap:24px;margin-left:auto}
+.links a{color:var(--muted);text-decoration:none;font-size:15px;font-weight:500}
+.links a:hover{color:var(--ink)}
+.btn{display:inline-flex;align-items:center;gap:8px;border-radius:10px;padding:10px 16px;font:600 15px/1 var(--sans);text-decoration:none;border:1px solid var(--line);color:var(--ink);background:var(--surface);white-space:nowrap}
+.btn:hover{border-color:color-mix(in srgb, var(--ink) 30%, var(--line))}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.lg{padding:14px 20px;font-size:16px}
+
+/* ------------------------------------------------------------ hero */
+.hero{padding:88px 0 72px}
+.hero .wrap{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:64px;align-items:center}
+h1{font:400 clamp(44px,6.2vw,76px)/1.02 var(--serif);letter-spacing:-.025em;margin:0}
+h1 em{font-style:italic;color:var(--accent-ink)}
+.lede{font-size:19px;color:var(--muted);max-width:34em;margin:24px 0 32px}
+.cta{display:flex;gap:12px;flex-wrap:wrap}
+.meta{margin-top:28px;font-size:14px;color:var(--muted);display:flex;gap:18px;flex-wrap:wrap}
+.meta span{display:inline-flex;align-items:center;gap:6px}
+.meta svg{color:var(--accent)}
+
+/* demo card */
+.demo{position:relative}
+.demo-card{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:26px 26px 22px;box-shadow:0 1px 2px rgba(24,34,42,.05),0 24px 60px -24px rgba(40,30,90,.28)}
+.demo-langs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
+.chip{font:600 12.5px/1 var(--sans);padding:6px 10px;border-radius:99px;background:var(--sunken);color:var(--muted);transition:background .3s,color .3s}
+.chip.on{background:var(--accent-soft);color:var(--accent-ink)}
+.demo-q{font:500 22px/1.3 var(--sans);min-height:2.6em;margin:0;transition:opacity .35s,transform .35s}
+.demo-q.out{opacity:0;transform:translateY(-6px)}
+.demo-status{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0 18px;font-size:13.5px;color:var(--muted);min-height:26px}
+.status{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:99px;font-weight:600;font-size:13px}
+.status.hit{background:var(--accent-soft);color:var(--accent-ink)}
+.status.miss{background:var(--gold-soft);color:var(--gold)}
+.status svg{width:14px;height:14px}
+.demo-a{font:400 20px/1.55 var(--serif);margin:0;padding-top:16px;border-top:1px solid var(--line)}
+.cite{display:inline-block;min-width:20px;padding:0 6px;border-radius:6px;background:var(--accent-soft);color:var(--accent-ink);font:600 12px/19px var(--sans);text-align:center;vertical-align:3px}
+.demo-src{display:flex;gap:8px;align-items:center;margin-top:14px;font-size:13.5px;color:var(--muted)}
+.demo-src b{color:var(--ink);font-weight:600}
+.demo-caption{margin:14px 4px 0;font-size:14px;color:var(--muted)}
+
+/* ------------------------------------------------------- showcase */
+.showcase{padding:24px 0 96px}
+.frame{position:relative}
+.frame .desktop{border-radius:16px;border:1px solid var(--line);box-shadow:0 30px 80px -30px rgba(24,34,42,.35);background:var(--surface)}
+.frame figcaption{margin-top:18px;font-size:14.5px;color:var(--muted);text-align:center}
+
+/* ------------------------------------------------------- sections */
+section.block{padding:96px 0;border-top:1px solid var(--line)}
+.head{max-width:640px;margin-bottom:56px}
+h2{font:400 clamp(34px,4.4vw,50px)/1.08 var(--serif);letter-spacing:-.02em;margin:0 0 16px}
+.head p{color:var(--muted);font-size:18px;margin:0}
+
+/* features: two-column editorial list */
+.features{display:grid;grid-template-columns:1fr 1fr;gap:56px 72px}
+.feature h3{font:600 19px/1.3 var(--sans);margin:0 0 10px;display:flex;align-items:center;gap:10px}
+.feature h3 svg{width:22px;height:22px;color:var(--accent)}
+.feature p{margin:0;color:var(--muted)}
+.feature ul{margin:12px 0 0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:8px}
+.feature li{font-size:13.5px;padding:4px 10px;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
+
+/* compare table */
+.compare{margin-top:80px;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--surface)}
+.compare-row{display:grid;grid-template-columns:1fr 1fr}
+.compare-row > div{padding:18px 24px;border-top:1px solid var(--line)}
+.compare-row > div + div{border-left:1px solid var(--line)}
+.compare-row:first-child > div{border-top:0;font-weight:600;font-size:14.5px;background:var(--sunken)}
+.compare-row:first-child > div + div{color:var(--accent-ink)}
+.compare-row > div:first-child{color:var(--muted)}
+
+/* how it works: real sequence */
+.steps{list-style:none;margin:0;padding:0;counter-reset:s;display:grid;gap:0}
+.steps li{counter-increment:s;display:grid;grid-template-columns:72px minmax(0,1fr);gap:24px;padding:28px 0;border-top:1px solid var(--line)}
+.steps li:last-child{border-bottom:1px solid var(--line)}
+.steps li::before{content:counter(s);font:italic 400 44px/1 var(--serif);color:var(--accent)}
+.steps h3{margin:0 0 6px;font:600 19px/1.3 var(--sans)}
+.steps p{margin:0;color:var(--muted);max-width:62ch}
+.steps .branch{display:inline-block;margin-top:10px;font-size:14px;padding:6px 12px;border-radius:8px;background:var(--accent-soft);color:var(--accent-ink);font-weight:500}
+
+/* get started */
+.start{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px}
+.code{background:var(--code-bg);color:var(--code-ink);border-radius:16px;overflow:hidden}
+.code-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.08)}
+.code-head b{font:600 15px/1 var(--sans)}
+.copy{border:1px solid rgba(255,255,255,.15);background:none;color:var(--code-ink);border-radius:8px;padding:6px 10px;font:500 13px/1 var(--sans);cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+.copy:hover{background:rgba(255,255,255,.06)}
+.copy svg{width:15px;height:15px}
+pre{margin:0;padding:18px 20px 22px;overflow-x:auto;font:14px/1.7 var(--mono)}
+pre .c{color:var(--code-muted)}
+.note{margin-top:28px;padding:18px 22px;border-radius:14px;background:var(--surface);border:1px solid var(--line);color:var(--muted);font-size:15.5px}
+.note b{color:var(--ink)}
+.note code,.inline{font:13.5px var(--mono);background:var(--sunken);padding:2px 6px;border-radius:5px;color:var(--ink)}
+
+/* closing */
+.closing{padding:110px 0;text-align:center;border-top:1px solid var(--line)}
+.closing h2{margin:0 auto 18px;max-width:22ch}
+.closing p{color:var(--muted);margin:0 auto 32px;max-width:46ch;font-size:18px}
+.closing .cta{justify-content:center}
+
+footer{border-top:1px solid var(--line);padding:32px 0 calc(32px + env(safe-area-inset-bottom));font-size:14px;color:var(--muted)}
+footer .wrap{display:flex;gap:16px 28px;flex-wrap:wrap;align-items:center}
+footer a{color:var(--muted)}
+footer .brand b{font-size:20px}
+footer .right{margin-left:auto;display:flex;gap:22px;flex-wrap:wrap}
+
+/* --------------------------------------------------------- responsive */
+@media (max-width:920px){
+  .hero{padding:56px 0 48px}
+  .hero .wrap{grid-template-columns:1fr;gap:44px}
+  .features{grid-template-columns:1fr;gap:40px}
+  .start{grid-template-columns:1fr}
+}
+@media (max-width:680px){
+  body{font-size:16px}
+  .wrap{padding:0 18px}
+  .links{display:none}
+  .nav .btn{margin-left:auto;padding:9px 12px}
+  .nav .btn span{display:none}
+  .lede{font-size:17.5px}
+  .cta .btn{flex:1 1 auto;justify-content:center}
+  .demo-card{padding:20px 18px 18px}
+  .demo-q{font-size:19px}
+  .demo-a{font-size:18px}
+  section.block{padding:72px 0}
+  .head{margin-bottom:40px}
+  .compare-row{grid-template-columns:1fr}
+  .compare-row > div + div{border-left:0;border-top:1px dashed var(--line);padding-top:12px}
+  .compare-row > div:first-child{padding-bottom:12px}
+  .compare-row:first-child{display:none}
+  .compare-row:nth-child(2) > div:first-child{border-top:0}
+  .compare-row > div:first-child::before{content:"Without Polylang";display:block;font-size:12.5px;font-weight:600;margin-bottom:2px}
+  .compare-row > div + div::before{content:"With Polylang";display:block;font-size:12.5px;font-weight:600;margin-bottom:2px;color:var(--accent-ink)}
+  .steps li{grid-template-columns:44px minmax(0,1fr);gap:14px}
+  .steps li::before{font-size:34px}
+  .showcase{padding-bottom:72px}
+  .closing{padding:80px 0}
+  footer .right{margin-left:0}
+}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *{transition:none !important;animation:none !important}
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-code" viewBox="0 0 24 24"><path d="m8 8-5 4 5 4M16 8l5 4-5 4M14 4l-4 16"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 3 5 14h6l-1 7 8-11h-6Z"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></symbol>
+  <symbol id="i-quote" viewBox="0 0 24 24"><path d="M7 7h4v4c0 3-2 5-4 6M15 7h4v4c0 3-2 5-4 6"/></symbol>
+  <symbol id="i-server" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+</svg>
+
+<header class="nav" id="nav">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="Polylang">
+      <span class="mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18V6h5a3.5 3.5 0 0 1 0 7H7"/><path d="M17 18h.01" stroke-width="3.2"/></svg></span>
+      <b>Polylang</b>
+    </a>
+    <nav class="links" aria-label="Page sections">
+      <a href="#features">Features</a>
+      <a href="#how">How it works</a>
+      <a href="#start">Get started</a>
+    </nav>
+    <a class="btn repo" href="#" target="_blank" rel="noopener"><svg class="i"><use href="#i-code"/></svg><span>View source</span></a>
+  </div>
+</header>
+
+<main id="top">
+  <!-- ======================================================= HERO -->
+  <section class="hero">
+    <div class="wrap">
+      <div>
+        <h1>Ask in any language. <em>Answer from every language.</em></h1>
+        <p class="lede">Polylang is an open-source question-answering service for knowledge bases written in many languages. It finds the right passages wherever they are, answers with citations, and remembers what it has already answered, even when the next person asks in another language.</p>
+        <div class="cta">
+          <a class="btn primary lg" href="#start">Get started<svg class="i"><use href="#i-arrow"/></svg></a>
+          <a class="btn lg repo" href="#" target="_blank" rel="noopener"><svg class="i"><use href="#i-code"/></svg>View source on GitHub</a>
+        </div>
+        <div class="meta">
+          <span><svg class="i"><use href="#i-check"/></svg>MIT licensed</span>
+          <span><svg class="i"><use href="#i-check"/></svg>Self-hosted</span>
+          <span><svg class="i"><use href="#i-check"/></svg>Works without an LLM</span>
+        </div>
+      </div>
+
+      <div class="demo" aria-label="Example: the same question asked in four languages reuses one saved answer">
+        <div class="demo-card">
+          <div class="demo-langs" id="demoLangs" aria-hidden="true">
+            <span class="chip on">English</span><span class="chip">Kiswahili</span><span class="chip">Русский</span><span class="chip">Français</span>
+          </div>
+          <p class="demo-q" id="demoQ" aria-live="polite">How does semantic caching reduce latency?</p>
+          <div class="demo-status" id="demoStatus"><span class="status miss">Searched 4 passages</span><span>Answered in 9 ms</span></div>
+          <p class="demo-a">Semantic caching reduces latency and cost by reusing answers to questions that mean the same thing. <span class="cite">1</span></p>
+          <div class="demo-src"><span class="cite">1</span><b>Semantic caching</b><span>English</span></div>
+        </div>
+        <p class="demo-caption">The first question is answered from the documents. The same question in Kiswahili, Russian or French reuses that answer in under a millisecond.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- =================================================== SHOWCASE -->
+  <section class="showcase">
+    <div class="wrap">
+      <figure class="frame" style="margin:0">
+        <picture>
+        <source media="(max-width: 680px)" srcset="images/mobile.png" width="1250" height="840">
+        <img class="desktop" src="images/desktop.png" width="2400" height="1600" loading="lazy"
+             alt="The Polylang web app: a question in Kiswahili answered from Kiswahili and English sources, with citations, and a reworded English question answered instantly from saved answers">
+        </picture>
+        <figcaption>The built-in web app. Every answer shows the language it was asked in, the languages of its sources, and which passages it cites.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- =================================================== FEATURES -->
+  <section class="block" id="features">
+    <div class="wrap">
+      <div class="head">
+        <h2>Built for knowledge that doesn't live in one language</h2>
+        <p>Policies in English, field reports in Kiswahili, partner documents in French. Polylang treats them as one knowledge base.</p>
+      </div>
+
+      <div class="features">
+        <article class="feature">
+          <h3><svg class="i"><use href="#i-globe"/></svg>Search across languages</h3>
+          <p>A multilingual embedding model places questions and documents from more than 50 languages in one shared space, so a Russian question finds an English answer. Keyword search runs alongside it to catch exact names, codes and rare terms.</p>
+          <ul><li>Meaning + keyword search</li><li>Rank fusion</li><li>Collections</li></ul>
+        </article>
+        <article class="feature">
+          <h3><svg class="i"><use href="#i-bolt"/></svg>Answer once, reuse everywhere</h3>
+          <p>Every answer is saved with the meaning of its question. A later question that means the same thing, however it is worded and whatever language it is in, gets the saved answer instantly. No search, no LLM call.</p>
+          <ul><li>Adjustable match strictness</li><li>Expiry and size limits</li><li>Cleared when documents change</li></ul>
+        </article>
+        <article class="feature">
+          <h3><svg class="i"><use href="#i-quote"/></svg>Answers you can check</h3>
+          <p>Each answer is written in the asker's language and cites the numbered passages it used. Click a citation to see the original text. When nothing relevant is found, Polylang says so instead of guessing.</p>
+          <ul><li>Numbered citations</li><li>Answers in the asker's language</li></ul>
+        </article>
+        <article class="feature">
+          <h3><svg class="i"><use href="#i-server"/></svg>Your server, your choice of model</h3>
+          <p>Run it with no LLM at all, where it quotes the most relevant sentences, or connect OpenAI, Anthropic Claude, any OpenAI-compatible server, or a local Ollama model. If the model fails, it falls back to quoting.</p>
+          <ul><li>OpenAI</li><li>Claude</li><li>Ollama</li><li>No LLM</li></ul>
+        </article>
+        <article class="feature">
+          <h3><svg class="i"><use href="#i-file"/></svg>Bring the documents you have</h3>
+          <p>Drop in PDF, Word, Markdown, HTML, CSV, JSON or plain text from the web app, the API or the command line. Documents are split into passages, their language is detected, and duplicates are skipped.</p>
+          <ul><li>PDF</li><li>Word</li><li>Markdown</li><li>HTML</li><li>CSV</li><li>JSON</li></ul>
+        </article>
+        <article class="feature">
+          <h3><svg class="i"><use href="#i-lock"/></svg>Ready to deploy</h3>
+          <p>A web app that works on phones, a REST API with interactive docs, a Python library and a command-line tool. Optional access keys, saved state across restarts, and a Docker image with the model built in.</p>
+          <ul><li>Docker</li><li>REST API</li><li>CLI</li><li>Light and dark</li></ul>
+        </article>
+      </div>
+
+      <div class="compare" role="table" aria-label="Without and with Polylang">
+        <div class="compare-row" role="row"><div role="columnheader">Without Polylang</div><div role="columnheader">With Polylang</div></div>
+        <div class="compare-row" role="row"><div role="cell">A Kiswahili question can't find an English document.</div><div role="cell">Questions and documents meet in one language-independent space.</div></div>
+        <div class="compare-row" role="row"><div role="cell">Every rephrasing of a question costs a full LLM call.</div><div role="cell">Equivalent questions, in any language, reuse one saved answer.</div></div>
+        <div class="compare-row" role="row"><div role="cell">Keyword search misses paraphrases; vector search misses exact names.</div><div role="cell">Both run together and their rankings are combined.</div></div>
+        <div class="compare-row" role="row"><div role="cell">Answers can't be traced back to a source.</div><div role="cell">Every answer cites the passages it came from.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================ HOW IT WORKS -->
+  <section class="block" id="how">
+    <div class="wrap">
+      <div class="head">
+        <h2>What happens when you ask</h2>
+        <p>Five steps, most of which are skipped when the question has effectively been asked before.</p>
+      </div>
+      <ol class="steps">
+        <li><div><h3>Understand the question</h3><p>The question is turned into a vector with <a href="https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2" target="_blank" rel="noopener">paraphrase-multilingual-MiniLM-L12-v2</a>, a model that gives the same meaning a similar vector in any of its 50+ languages.</p></div></li>
+        <li><div><h3>Check the saved answers</h3><p>The vector is compared with every previously answered question in one step. If one is close enough, its answer is returned straight away.</p><span class="branch">Close match found: answered in about a millisecond</span></div></li>
+        <li><div><h3>Search the documents</h3><p>Meaning-based search finds passages that say the same thing in any language. Keyword search finds exact terms. The two rankings are fused, rewarding passages that rank well in either.</p></div></li>
+        <li><div><h3>Write the answer</h3><p>The best passages are numbered and handed to the answer writer, which replies in the question's language and cites what it used.</p></div></li>
+        <li><div><h3>Remember it</h3><p>The answer, its sources and the question's vector are saved for next time. Adding or removing documents clears saved answers, so they never go stale.</p></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ================================================= GET STARTED -->
+  <section class="block" id="start">
+    <div class="wrap">
+      <div class="head">
+        <h2>Running in two minutes</h2>
+        <p>Install with pip or Docker, load the bundled multilingual sample, and open the web app at <span class="inline">http://127.0.0.1:8001</span>.</p>
+      </div>
+      <div class="start">
+        <div class="code">
+          <div class="code-head"><b>With pip</b><button class="copy" data-copy="pip"><svg class="i"><use href="#i-copy"/></svg><span>Copy</span></button></div>
+<pre id="pip"><span class="c"># Python 3.10 or newer</span>
+git clone <span class="clone-url">https://github.com/valentinakiyungi/polylang.git</span>
+cd <span class="clone-dir">polylang</span>
+python3 -m venv venv && source venv/bin/activate
+pip install -e ".[files]"
+
+polylang ingest data/samples/knowledge_base.jsonl
+polylang serve</pre>
+        </div>
+        <div class="code">
+          <div class="code-head"><b>With Docker</b><button class="copy" data-copy="docker"><svg class="i"><use href="#i-copy"/></svg><span>Copy</span></button></div>
+<pre id="docker">git clone <span class="clone-url">https://github.com/valentinakiyungi/polylang.git</span>
+cd <span class="clone-dir">polylang</span>
+docker compose up --build
+
+<span class="c"># Optional: answer with a local model</span>
+docker compose --profile ollama up -d
+docker compose exec ollama ollama pull llama3.1</pre>
+        </div>
+      </div>
+      <div class="note"><b>On a slow connection?</b> The full install downloads PyTorch and a 470 MB language model. Add <code>--offline</code> to any command to try Polylang without them. Search then matches by spelling rather than meaning, so it isn't cross-lingual, but everything else works.</div>
+    </div>
+  </section>
+
+  <!-- ===================================================== CLOSING -->
+  <section class="closing">
+    <div class="wrap">
+      <h2>One knowledge base. Every language.</h2>
+      <p>Polylang is free and open source under the MIT license. Read the code, file an issue, or run it on your own server today.</p>
+      <div class="cta">
+        <a class="btn primary lg repo" href="#" target="_blank" rel="noopener"><svg class="i"><use href="#i-code"/></svg>View source on GitHub</a>
+        <a class="btn lg" href="#start">Get started</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <a class="brand" href="#top"><span class="mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18V6h5a3.5 3.5 0 0 1 0 7H7"/><path d="M17 18h.01" stroke-width="3.2"/></svg></span><b>Polylang</b></a>
+    <span>MIT License</span>
+    <div class="right">
+      <a class="repo" href="#" target="_blank" rel="noopener">Source code</a>
+      <a class="repo-path" data-path="/issues" href="#" target="_blank" rel="noopener">Report an issue</a>
+      <a class="repo-path" data-path="#readme" href="#" target="_blank" rel="noopener">Documentation</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* The repository is read from the Pages address (owner.github.io/<repo>/),
+   so links stay correct if the repository is renamed. */
+(function(){
+  let owner = "valentinakiyungi", repo = "polylang";
+  const host = location.hostname;
+  if (host.endsWith(".github.io")){
+    owner = host.split(".")[0];
+    const first = location.pathname.split("/").filter(Boolean)[0];
+    if (first) repo = first;
+  }
+  const url = `https://github.com/${owner}/${repo}`;
+  document.querySelectorAll("a.repo").forEach(a => a.href = url);
+  document.querySelectorAll("a.repo-path").forEach(a => a.href = url + a.dataset.path);
+  document.querySelectorAll(".clone-url").forEach(s => s.textContent = url + ".git");
+  document.querySelectorAll(".clone-dir").forEach(s => s.textContent = repo);
+})();
+
+/* Sticky nav border once the page scrolls */
+const nav = document.getElementById("nav");
+addEventListener("scroll", () => nav.classList.toggle("scrolled", scrollY > 8), {passive:true});
+
+/* Copy buttons */
+document.querySelectorAll(".copy").forEach(b => b.addEventListener("click", async () => {
+  const text = document.getElementById(b.dataset.copy).innerText;
+  try{ await navigator.clipboard.writeText(text); }
+  catch(e){ const r = document.createRange(); r.selectNodeContents(document.getElementById(b.dataset.copy)); getSelection().removeAllRanges(); getSelection().addRange(r); return; }
+  const label = b.querySelector("span"); label.textContent = "Copied";
+  setTimeout(() => label.textContent = "Copy", 1600);
+}));
+
+/* Hero demo: one question in four languages, one saved answer */
+(function(){
+  const steps = [
+    {lang:0, q:"How does semantic caching reduce latency?", hit:false, note:"Answered in 9 ms"},
+    {lang:1, q:"Semantic caching hupunguzaje muda wa kusubiri?", hit:true, match:93, note:"0.4 ms"},
+    {lang:2, q:"Как семантический кэш снижает задержку?", hit:true, match:91, note:"0.4 ms"},
+    {lang:3, q:"Comment le cache sémantique réduit-il la latence ?", hit:true, match:92, note:"0.3 ms"},
+  ];
+  const qEl = document.getElementById("demoQ"), sEl = document.getElementById("demoStatus");
+  const chips = [...document.querySelectorAll("#demoLangs .chip")];
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  let i = 0, timer;
+  function render(s){
+    chips.forEach((c, n) => c.classList.toggle("on", n === s.lang));
+    qEl.textContent = s.q;
+    sEl.innerHTML = s.hit
+      ? `<span class="status hit"><svg class="i"><use href="#i-bolt"/></svg>Reused answer</span><span>${s.match}% match, ${s.note}</span>`
+      : `<span class="status miss">Searched 4 passages</span><span>${s.note}</span>`;
+  }
+  function next(){
+    i = (i + 1) % steps.length;
+    qEl.classList.add("out");
+    setTimeout(() => { render(steps[i]); qEl.classList.remove("out"); }, 350);
+  }
+  function start(){ stop(); timer = setInterval(next, 3200); }
+  function stop(){ clearInterval(timer); }
+  document.addEventListener("visibilitychange", () => document.hidden ? stop() : start());
+  start();
+})();
+</script>
+</body>
+</html>
