@@ -45,6 +45,15 @@ class DocumentIn(BaseModel):
     language: str | None = None
 
 
+class SettingsPatch(BaseModel):
+    top_k: int | None = Field(None, ge=1, le=50)
+    fusion: str | None = Field(None, pattern=r"^(rrf|weighted)$")
+    dense_weight: float | None = Field(None, ge=0, le=1)
+    cache_enabled: bool | None = None
+    cache_threshold: float | None = Field(None, gt=0, le=1)
+    cache_cross_lingual: bool | None = None
+
+
 class DocumentsIn(BaseModel):
     documents: list[DocumentIn] = Field(..., min_length=1, max_length=1000)
     collection: str = "default"
@@ -95,6 +104,14 @@ def create_app(engine: RAGEngine | None = None, settings: Settings | None = None
     @app.get("/stats", tags=["meta"], dependencies=[Depends(require_key)])
     def stats(eng: RAGEngine = Depends(get_engine)):
         return eng.stats()
+
+    @app.get("/config", tags=["meta"], dependencies=[Depends(require_key)])
+    def get_config(eng: RAGEngine = Depends(get_engine)):
+        return eng.config()
+
+    @app.patch("/config", tags=["meta"], dependencies=[Depends(require_key)])
+    def patch_config(body: SettingsPatch, eng: RAGEngine = Depends(get_engine)):
+        return eng.update_settings(body.model_dump(exclude_none=True))
 
     # ---- querying
     @app.post("/query", tags=["query"], dependencies=[Depends(require_key)])

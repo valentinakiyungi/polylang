@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import json
 import logging
@@ -26,6 +27,19 @@ from polylang.vector_store import VectorIndex
 
 log = logging.getLogger(__name__)
 STORE_VERSION = 1
+
+# Settings that can be changed while the server runs (from the web UI or PATCH /config).
+# They are saved to <data_dir>/settings.json and take precedence over environment variables.
+RUNTIME_SETTINGS: dict[str, type] = {
+    "top_k": int,
+    "fusion": str,
+    "dense_weight": float,
+    "cache_enabled": bool,
+    "cache_threshold": float,
+    "cache_cross_lingual": bool,
+}
+# Changing these changes which passages are retrieved, so cached answers are dropped.
+_RETRIEVAL_KEYS = {"top_k", "fusion", "dense_weight", "cache_cross_lingual"}
 
 
 @dataclass
@@ -99,6 +113,8 @@ class RAGEngine:
     def __init__(self, settings: Settings | None = None, embedder: Embedder | None = None,
                  generator: Generator | None = None):
         self.settings = settings or Settings.from_env()
+        if self.settings.persist:
+            self._load_runtime_settings()
         self.embedder = embedder or build_embedder(
             self.settings.embedding_backend, self.settings.embedding_model,
             self.settings.embedding_device, self.settings.hashing_dim)
@@ -389,6 +405,78 @@ class RAGEngine:
     def close(self) -> None:
         with self._lock:
             self.flush_cache()
+
+    # ======================================================== runtime config
+    def config(self) -> dict:
+        s = self.settings
+        return {
+            "editable": {k: getattr(s, k) for k in RUNTIME_SETTINGS},
+            "server": {
+                "embedder": self.embedder.name,
+                "generator": self.generator.name,
+                "chunk_size": s.chunk_size,
+                "chunk_overlap": s.chunk_overlap,
+                "cache_max_entries": s.cache_max_entries,
+                "cache_ttl_seconds": s.cache_ttl_seconds,
+                "max_upload_mb": s.max_upload_mb,
+                "persist": s.persist,
+            },
+        }
+
+    def update_settings(self, changes: dict) -> dict:
+        """Validate and apply runtime setting changes; returns the new config."""
+        unknown = set(changes) - set(RUNTIME_SETTINGS)
+        if unknown:
+            raise ValueError(f"These settings can't be changed at runtime: {', '.join(sorted(unknown))}")
+        coerced = {}
+        for key, value in changes.items():
+            typ = RUNTIME_SETTINGS[key]
+            if typ is bool and not isinstance(value, bool):
+                raise ValueError(f"{key} must be true or false")
+            if typ is int and (isinstance(value, bool) or not isinstance(value, int)):
+                raise ValueError(f"{key} must be a whole number")
+            if typ is float and (isinstance(value, bool) or not isinstance(value, (int, float))):
+                raise ValueError(f"{key} must be a number")
+            if typ is str and not isinstance(value, str):
+                raise ValueError(f"{key} must be text")
+            coerced[key] = typ(value)
+        with self._lock:
+            candidate = dataclasses.replace(self.settings, **coerced)
+            candidate.validate()
+            if candidate.top_k > 50:
+                raise ValueError("top_k must be 50 or less")
+            changed = {k for k, v in coerced.items() if getattr(self.settings, k) != v}
+            for k in changed:
+                setattr(self.settings, k, coerced[k])
+            self.cache.threshold = self.settings.cache_threshold
+            if changed & _RETRIEVAL_KEYS:
+                self._invalidate_cache()
+            self._save_runtime_settings()
+            return self.config()
+
+    def _save_runtime_settings(self) -> None:
+        if not self.settings.persist:
+            return
+        self._dir.mkdir(parents=True, exist_ok=True)
+        data = {k: getattr(self.settings, k) for k in RUNTIME_SETTINGS}
+        tmp = self._dir / "settings.json.tmp"
+        tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        tmp.replace(self._dir / "settings.json")
+
+    def _load_runtime_settings(self) -> None:
+        path = self._dir / "settings.json"
+        if not path.is_file():
+            return
+        try:
+            data = json.loads(path.read_text("utf-8"))
+            values = {k: RUNTIME_SETTINGS[k](v) for k, v in data.items() if k in RUNTIME_SETTINGS}
+            candidate = dataclasses.replace(self.settings, **values)
+            candidate.validate()
+        except (ValueError, TypeError, json.JSONDecodeError) as exc:
+            log.warning("Ignoring invalid %s: %s", path, exc)
+            return
+        for k, v in values.items():
+            setattr(self.settings, k, v)
 
     def _load(self) -> None:
         corpus_path = self._dir / "corpus.json"

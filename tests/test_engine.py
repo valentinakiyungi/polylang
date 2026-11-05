@@ -175,3 +175,28 @@ def test_cli(tmp_path, capsys):
     assert cli_main(base + ["delete", "k1"]) == 0
     assert cli_main(base + ["delete", "k1"]) == 1
     assert cli_main(base + ["ingest", str(tmp_path / "missing.txt")]) == 2
+
+
+def test_runtime_settings_update_and_persist(settings, loaded):
+    loaded.query("What is retrieval augmented generation?")
+    cfg = loaded.update_settings({"cache_threshold": 0.95})
+    assert cfg["editable"]["cache_threshold"] == 0.95 and loaded.cache.threshold == 0.95
+    assert len(loaded.cache) == 1  # threshold change keeps cached answers
+    loaded.update_settings({"top_k": 2, "fusion": "weighted"})
+    assert len(loaded.cache) == 0  # retrieval change drops them
+    assert len(loaded.retrieve("Rust")) <= 2
+    loaded.close()
+    again = RAGEngine(settings.__class__.from_env(embedding_backend="hashing", data_dir=settings.data_dir))
+    assert again.settings.top_k == 2 and again.settings.fusion == "weighted"
+    assert again.cache.threshold == 0.95
+
+
+@pytest.mark.parametrize("bad", [
+    {"chunk_size": 10}, {"top_k": "5"}, {"top_k": 0}, {"top_k": 99},
+    {"fusion": "magic"}, {"cache_threshold": 1.5}, {"cache_enabled": "yes"},
+])
+def test_runtime_settings_rejects_bad_values(loaded, bad):
+    before = loaded.config()["editable"]
+    with pytest.raises(ValueError):
+        loaded.update_settings(bad)
+    assert loaded.config()["editable"] == before

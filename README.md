@@ -57,7 +57,8 @@ milliseconds and no retrieval or LLM call is made.
   If the LLM call fails, the engine falls back to an extractive answer and reports a warning.
 - **Persistence** – documents, vectors and cache are saved to disk and reloaded on start. Switching
   embedding models triggers an automatic re-embed.
-- **Web UI, REST API, CLI** – a built-in single-page UI at `/`, interactive API docs at `/docs`,
+- **Web UI, REST API, CLI** – a built-in, mobile-friendly web app at `/` (light/dark theme, a settings
+  panel, cited answers that show which languages they came from), interactive API docs at `/docs`,
   and a `polylang` command.
 - **Production bits** – optional API-key auth, CORS, upload limits, Docker image with the model
   baked in, health check, GitHub Actions CI.
@@ -122,6 +123,7 @@ Add `--offline` to any command to use the dependency-free hashing embedder (see 
 | `GET` | `/cache` | Cached answers |
 | `DELETE` | `/cache`, `/cache/{id}` | Clear the cache / one entry |
 | `GET` | `/stats` | Index and cache statistics |
+| `GET` / `PATCH` | `/config` | Read or change answer and cache settings while running |
 | `GET` | `/health` | Liveness (never needs a key) |
 
 ```bash
@@ -191,6 +193,11 @@ All settings come from environment variables (or a `.env` file); see
 | `POLYLANG_LLM_BASE_URL` | provider default | For OpenAI-compatible servers / Ollama |
 | `POLYLANG_LLM_API_KEY` | – | Falls back to `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` |
 | `POLYLANG_API_KEY` | – | If set, requests need header `X-API-Key` |
+
+Passages per answer, search method, the meaning/keyword balance and all saved-answer settings can
+also be changed while the server runs, from **Settings** in the web app or `PATCH /config`. Those
+changes are saved to `settings.json` in the data directory and take precedence over environment
+variables.
 
 **Choosing the cache threshold.** Higher is safer (fewer wrong reuses), lower saves more calls.
 With the default model, 0.85–0.90 works well for paraphrases; cross-lingual pairs of the same

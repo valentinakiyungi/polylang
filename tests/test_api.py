@@ -85,3 +85,12 @@ def test_api_key(secured):
     assert secured.get("/stats").status_code == 401
     assert secured.get("/stats", headers={"X-API-Key": "wrong"}).status_code == 401
     assert secured.get("/stats", headers={"X-API-Key": "s3cret"}).status_code == 200
+
+
+def test_config_endpoints(client):
+    cfg = client.get("/config").json()
+    assert "embedder" in cfg["server"] and "cache_threshold" in cfg["editable"]
+    r = client.patch("/config", json={"cache_threshold": 0.8, "top_k": 6})
+    assert r.status_code == 200 and r.json()["editable"]["top_k"] == 6
+    assert client.patch("/config", json={"fusion": "magic"}).status_code == 422
+    assert client.patch("/config", json={"top_k": 0}).status_code == 422
