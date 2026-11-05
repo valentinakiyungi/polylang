@@ -4,7 +4,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     HF_HOME=/app/.cache/huggingface \
-    RAG_DATA_DIR=/app/storage
+    POLYLANG_DATA_DIR=/app/storage
 
 WORKDIR /app
 
@@ -12,12 +12,12 @@ WORKDIR /app
 RUN pip install --index-url https://download.pytorch.org/whl/cpu torch
 
 COPY pyproject.toml README.md ./
-COPY rag_engine ./rag_engine
+COPY polylang ./polylang
 RUN pip install ".[files]"
 
 # Bake the embedding model into the image so containers start offline.
 ARG EMBEDDING_MODEL=paraphrase-multilingual-MiniLM-L12-v2
-ENV RAG_EMBEDDING_MODEL=${EMBEDDING_MODEL}
+ENV POLYLANG_EMBEDDING_MODEL=${EMBEDDING_MODEL}
 RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('${EMBEDDING_MODEL}')"
 
 COPY data ./data
@@ -29,4 +29,4 @@ VOLUME ["/app/storage"]
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health')" || exit 1
 
-CMD ["uvicorn", "rag_engine.server:app", "--host", "0.0.0.0", "--port", "8001"]
+CMD ["uvicorn", "polylang.server:app", "--host", "0.0.0.0", "--port", "8001"]

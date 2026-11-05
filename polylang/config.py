@@ -1,4 +1,4 @@
-"""Runtime configuration, read from environment variables (prefix ``RAG_``).
+"""Runtime configuration, read from environment variables (prefix ``POLYLANG_``).
 
 Every setting has a sensible default so the engine runs with zero configuration.
 A ``.env`` file in the working directory is loaded automatically if present.
@@ -26,7 +26,7 @@ def _load_dotenv(path: Path = Path(".env")) -> None:
 
 
 def _env(name: str, default, cast=str):
-    raw = os.environ.get(f"RAG_{name}")
+    raw = os.environ.get(f"POLYLANG_{name}")
     if raw is None or raw == "":
         return default
     if cast is bool:
@@ -86,7 +86,7 @@ class Settings:
         s = cls()
         for f in fields(cls):
             if f.name == "cors_origins":
-                raw = os.environ.get("RAG_CORS_ORIGINS")
+                raw = os.environ.get("POLYLANG_CORS_ORIGINS")
                 if raw:
                     s.cors_origins = [o.strip() for o in raw.split(",") if o.strip()]
                 continue

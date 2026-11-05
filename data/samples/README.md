@@ -6,7 +6,7 @@ inference, RAG, semantic caching, hybrid retrieval and multilingual embeddings.
 Load it with:
 
 ```bash
-rag-engine ingest data/samples/knowledge_base.jsonl
+polylang ingest data/samples/knowledge_base.jsonl
 ```
 
 Each line is a JSON object with `text` and optional `id`, `title` and `metadata`.

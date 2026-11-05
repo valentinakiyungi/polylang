@@ -1,4 +1,4 @@
-"""Command-line interface: ``rag-engine <command>`` (or ``python -m rag_engine``)."""
+"""Command-line interface: ``polylang <command>`` (or ``python -m polylang``)."""
 
 from __future__ import annotations
 
@@ -7,11 +7,11 @@ import json
 import logging
 import sys
 
-from rag_engine.config import Settings
+from polylang.config import Settings
 
 
 def _engine(args):
-    from rag_engine.engine import RAGEngine
+    from polylang.engine import RAGEngine
     overrides = {}
     if args.data_dir:
         overrides["data_dir"] = args.data_dir
@@ -92,17 +92,17 @@ def cmd_serve(args) -> int:
         return 1
     if args.data_dir:
         import os
-        os.environ["RAG_DATA_DIR"] = args.data_dir
+        os.environ["POLYLANG_DATA_DIR"] = args.data_dir
     if args.offline:
         import os
-        os.environ["RAG_EMBEDDING_BACKEND"] = "hashing"
-    uvicorn.run("rag_engine.server:app", host=args.host, port=args.port, reload=args.reload)
+        os.environ["POLYLANG_EMBEDDING_BACKEND"] = "hashing"
+    uvicorn.run("polylang.server:app", host=args.host, port=args.port, reload=args.reload)
     return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="rag-engine", description="Cross-lingual semantic cache & hybrid RAG engine")
-    p.add_argument("--data-dir", help="storage directory (default: $RAG_DATA_DIR or ./storage)")
+    p = argparse.ArgumentParser(prog="polylang", description="Polylang: multilingual RAG")
+    p.add_argument("--data-dir", help="storage directory (default: $POLYLANG_DATA_DIR or ./storage)")
     p.add_argument("--offline", action="store_true", help="use the dependency-free hashing embedder")
     p.add_argument("-v", "--verbose", action="store_true")
     sub = p.add_subparsers(dest="command", required=True)

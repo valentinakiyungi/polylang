@@ -1,6 +1,8 @@
-# 🌐 Cross-Lingual Semantic Cache & Hybrid RAG Engine
+# 🌐 Polylang
 
-[![CI](https://github.com/valentinakiyungi/cross-lingual-rag-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/valentinakiyungi/cross-lingual-rag-engine/actions/workflows/ci.yml)
+**Ask in any language. Answer from every language.**
+
+[![CI](https://github.com/Valentina14142000/polylang/actions/workflows/ci.yml/badge.svg)](https://github.com/Valentina14142000/polylang/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110%2B-009688.svg)](https://fastapi.tiangolo.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -56,20 +58,20 @@ milliseconds and no retrieval or LLM call is made.
 - **Persistence** – documents, vectors and cache are saved to disk and reloaded on start. Switching
   embedding models triggers an automatic re-embed.
 - **Web UI, REST API, CLI** – a built-in single-page UI at `/`, interactive API docs at `/docs`,
-  and a `rag-engine` command.
+  and a `polylang` command.
 - **Production bits** – optional API-key auth, CORS, upload limits, Docker image with the model
   baked in, health check, GitHub Actions CI.
 
 ## Quick start
 
 ```bash
-git clone https://github.com/valentinakiyungi/cross-lingual-rag-engine.git
-cd cross-lingual-rag-engine
+git clone https://github.com/Valentina14142000/polylang.git
+cd polylang
 python3 -m venv venv && source venv/bin/activate
 pip install -e ".[files]"
 
-rag-engine ingest data/samples/knowledge_base.jsonl   # optional sample data
-rag-engine serve                                      # http://127.0.0.1:8001
+polylang ingest data/samples/knowledge_base.jsonl   # optional sample data
+polylang serve                                      # http://127.0.0.1:8001
 ```
 
 Open **http://127.0.0.1:8001** for the web UI, or **/docs** for the API explorer.
@@ -84,23 +86,23 @@ cp .env.example .env        # optional
 docker compose up --build   # http://localhost:8001
 ```
 
-Data lives in the `rag-storage` volume. For a fully local LLM:
+Data lives in the `polylang-storage` volume. For a fully local LLM:
 `docker compose --profile ollama up`, then `docker compose exec ollama ollama pull llama3.1`
-and set `RAG_LLM_PROVIDER=ollama`, `RAG_LLM_BASE_URL=http://ollama:11434` in `.env`.
+and set `POLYLANG_LLM_PROVIDER=ollama`, `POLYLANG_LLM_BASE_URL=http://ollama:11434` in `.env`.
 
 ## Using it
 
 ### CLI
 
 ```bash
-rag-engine ingest ./docs ./notes.pdf -c handbook     # files or folders, into a collection
-rag-engine query "Je, semantic caching hufanyaje kazi?"
-rag-engine query "How does semantic caching work?"   # → cache hit from the Swahili question
-rag-engine query "What is BM25?" -k 6 --no-cache --json
-rag-engine list
-rag-engine delete <doc-id>
-rag-engine stats
-rag-engine clear-cache
+polylang ingest ./docs ./notes.pdf -c handbook     # files or folders, into a collection
+polylang query "Je, semantic caching hufanyaje kazi?"
+polylang query "How does semantic caching work?"   # → cache hit from the Swahili question
+polylang query "What is BM25?" -k 6 --no-cache --json
+polylang list
+polylang delete <doc-id>
+polylang stats
+polylang clear-cache
 ```
 
 Add `--offline` to any command to use the dependency-free hashing embedder (see below).
@@ -159,7 +161,7 @@ A query response looks like:
 ### Python
 
 ```python
-from rag_engine import RAGEngine, Settings
+from polylang import RAGEngine, Settings
 
 engine = RAGEngine(Settings.from_env(llm_provider="ollama", llm_model="llama3.1"))
 engine.ingest_path("docs/")
@@ -174,21 +176,21 @@ All settings come from environment variables (or a `.env` file); see
 
 | Variable | Default | Notes |
 |---|---|---|
-| `RAG_DATA_DIR` | `./storage` | Where documents, vectors and cache are saved |
-| `RAG_EMBEDDING_BACKEND` | `sentence-transformers` | `hashing` = offline fallback |
-| `RAG_EMBEDDING_MODEL` | `paraphrase-multilingual-MiniLM-L12-v2` | Any sentence-transformers model |
-| `RAG_CHUNK_SIZE` / `RAG_CHUNK_OVERLAP` | `800` / `120` | Characters |
-| `RAG_TOP_K` | `4` | Passages per answer |
-| `RAG_FUSION` | `rrf` | `rrf` or `weighted` |
-| `RAG_DENSE_WEIGHT` | `0.6` | Dense vs BM25 balance |
-| `RAG_CACHE_THRESHOLD` | `0.88` | Cosine similarity needed for a hit |
-| `RAG_CACHE_CROSS_LINGUAL` | `true` | `false` = only reuse answers within the same language |
-| `RAG_CACHE_TTL_SECONDS` | `86400` | `0` = never expire |
-| `RAG_LLM_PROVIDER` | `extractive` | `openai`, `anthropic`, `ollama` |
-| `RAG_LLM_MODEL` | provider default | e.g. `gpt-4o-mini`, `claude-haiku-5-5`, `llama3.1` |
-| `RAG_LLM_BASE_URL` | provider default | For OpenAI-compatible servers / Ollama |
-| `RAG_LLM_API_KEY` | – | Falls back to `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` |
-| `RAG_API_KEY` | – | If set, requests need header `X-API-Key` |
+| `POLYLANG_DATA_DIR` | `./storage` | Where documents, vectors and cache are saved |
+| `POLYLANG_EMBEDDING_BACKEND` | `sentence-transformers` | `hashing` = offline fallback |
+| `POLYLANG_EMBEDDING_MODEL` | `paraphrase-multilingual-MiniLM-L12-v2` | Any sentence-transformers model |
+| `POLYLANG_CHUNK_SIZE` / `POLYLANG_CHUNK_OVERLAP` | `800` / `120` | Characters |
+| `POLYLANG_TOP_K` | `4` | Passages per answer |
+| `POLYLANG_FUSION` | `rrf` | `rrf` or `weighted` |
+| `POLYLANG_DENSE_WEIGHT` | `0.6` | Dense vs BM25 balance |
+| `POLYLANG_CACHE_THRESHOLD` | `0.88` | Cosine similarity needed for a hit |
+| `POLYLANG_CACHE_CROSS_LINGUAL` | `true` | `false` = only reuse answers within the same language |
+| `POLYLANG_CACHE_TTL_SECONDS` | `86400` | `0` = never expire |
+| `POLYLANG_LLM_PROVIDER` | `extractive` | `openai`, `anthropic`, `ollama` |
+| `POLYLANG_LLM_MODEL` | provider default | e.g. `gpt-4o-mini`, `claude-haiku-5-5`, `llama3.1` |
+| `POLYLANG_LLM_BASE_URL` | provider default | For OpenAI-compatible servers / Ollama |
+| `POLYLANG_LLM_API_KEY` | – | Falls back to `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` |
+| `POLYLANG_API_KEY` | – | If set, requests need header `X-API-Key` |
 
 **Choosing the cache threshold.** Higher is safer (fewer wrong reuses), lower saves more calls.
 With the default model, 0.85–0.90 works well for paraphrases; cross-lingual pairs of the same
@@ -196,12 +198,12 @@ question typically score 0.85–0.95. Watch `hit_rate` in `/stats` and adjust.
 
 **Cross-lingual cache hits return the cached answer as written.** If an English question hits an
 answer that was generated for a Swahili question, you get the Swahili answer (the response says
-so in `cache.matched_language`). Set `RAG_CACHE_CROSS_LINGUAL=false` if answers must always be in
+so in `cache.matched_language`). Set `POLYLANG_CACHE_CROSS_LINGUAL=false` if answers must always be in
 the asker's language.
 
 ### Offline / lightweight mode
 
-`RAG_EMBEDDING_BACKEND=hashing` (or `--offline`) swaps the neural model for a character n-gram
+`POLYLANG_EMBEDDING_BACKEND=hashing` (or `--offline`) swaps the neural model for a character n-gram
 hashing embedder that needs only NumPy. Retrieval, caching, the API and the UI all work, but
 matching is lexical, so it is **not** cross-lingual. It is used by the test suite and is handy
 on machines without PyTorch.
@@ -211,13 +213,13 @@ on machines without PyTorch.
 ```bash
 pip install -e ".[files,dev]"
 pytest          # runs offline with the hashing embedder
-ruff check rag_engine tests
+ruff check polylang tests
 ```
 
 Project layout:
 
 ```
-rag_engine/
+polylang/
   engine.py        orchestration: ingest, retrieve, cache, generate, persist
   cache.py         cross-lingual semantic cache
   bm25.py          incremental BM25 index
@@ -228,7 +230,7 @@ rag_engine/
   loaders.py       file parsers
   text.py          tokenisation and language detection
   api.py           FastAPI routes      server.py  ASGI entry point
-  cli.py           rag-engine command  static/    web UI
+  cli.py           polylang command  static/    web UI
 tests/             pytest suite
 data/samples/      multilingual sample knowledge base
 ```

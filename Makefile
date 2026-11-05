@@ -10,13 +10,13 @@ test:
 	pytest
 
 lint:
-	ruff check rag_engine tests
+	ruff check polylang tests
 
 run:
-	rag-engine serve --reload
+	polylang serve --reload
 
 seed:
-	rag-engine ingest data/samples/knowledge_base.jsonl
+	polylang ingest data/samples/knowledge_base.jsonl
 
 docker:
 	docker compose up --build

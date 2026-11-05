@@ -1,6 +1,6 @@
 import pytest
 
-from rag_engine import RAGEngine, Settings
+from polylang import RAGEngine, Settings
 
 
 @pytest.fixture

@@ -13,10 +13,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
 
-from rag_engine import __version__
-from rag_engine.config import Settings
-from rag_engine.engine import RAGEngine
-from rag_engine.loaders import SUPPORTED_EXTENSIONS, UnsupportedFileError
+from polylang import __version__
+from polylang.config import Settings
+from polylang.engine import RAGEngine
+from polylang.loaders import SUPPORTED_EXTENSIONS, UnsupportedFileError
 
 log = logging.getLogger(__name__)
 STATIC_DIR = Path(__file__).parent / "static"
@@ -63,7 +63,7 @@ def create_app(engine: RAGEngine | None = None, settings: Settings | None = None
             app.state.engine.close()
 
     app = FastAPI(
-        title="Cross-Lingual Semantic Cache & Hybrid RAG Engine",
+        title="Polylang",
         version=__version__,
         description="Multilingual RAG with dense + BM25 hybrid retrieval and a cross-lingual semantic cache.",
         lifespan=lifespan,

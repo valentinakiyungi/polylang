@@ -7,7 +7,7 @@ from collections import Counter
 
 import numpy as np
 
-from rag_engine.text import tokenize
+from polylang.text import tokenize
 
 
 class BM25Index:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from rag_engine.text import split_sentences
+from polylang.text import split_sentences
 
 
 def chunk_text(text: str, chunk_size: int = 800, overlap: int = 120) -> list[str]:

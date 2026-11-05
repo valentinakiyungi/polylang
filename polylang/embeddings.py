@@ -15,7 +15,7 @@ from typing import Protocol
 
 import numpy as np
 
-from rag_engine.text import normalize
+from polylang.text import normalize
 
 log = logging.getLogger(__name__)
 
@@ -44,7 +44,7 @@ class SentenceTransformerEmbedder:
         except ImportError as exc:  # pragma: no cover - depends on environment
             raise RuntimeError(
                 "sentence-transformers is not installed. Install it with "
-                "`pip install sentence-transformers` or set RAG_EMBEDDING_BACKEND=hashing."
+                "`pip install sentence-transformers` or set POLYLANG_EMBEDDING_BACKEND=hashing."
             ) from exc
         log.info("Loading embedding model %s ...", model_name)
         self._model = SentenceTransformer(model_name, device=device)

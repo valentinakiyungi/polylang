@@ -5,8 +5,8 @@ pytest.importorskip("httpx")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from rag_engine import RAGEngine  # noqa: E402
-from rag_engine.api import create_app  # noqa: E402
+from polylang import RAGEngine  # noqa: E402
+from polylang.api import create_app  # noqa: E402
 
 
 @pytest.fixture
@@ -23,7 +23,7 @@ def secured(settings):
 
 
 def test_ui_and_health(client):
-    assert "Cross-Lingual RAG" in client.get("/").text
+    assert "Polylang" in client.get("/").text
     assert client.get("/health").json()["status"] == "ok"
 
 

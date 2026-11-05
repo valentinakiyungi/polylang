@@ -16,7 +16,7 @@ from typing import Protocol
 
 import numpy as np
 
-from rag_engine.text import language_name, split_sentences
+from polylang.text import language_name, split_sentences
 
 log = logging.getLogger(__name__)
 
@@ -144,7 +144,7 @@ class AnthropicGenerator:
     def __init__(self, model: str, api_key: str, base_url: str = "", temperature: float = 0.2,
                  max_tokens: int = 600, timeout: float = 60.0):
         if not api_key:
-            raise ValueError("Anthropic provider needs RAG_LLM_API_KEY or ANTHROPIC_API_KEY")
+            raise ValueError("Anthropic provider needs POLYLANG_LLM_API_KEY or ANTHROPIC_API_KEY")
         self.model = model or "claude-haiku-5-5"
         self.api_key = api_key
         self.base_url = (base_url or "https://api.anthropic.com").rstrip("/")

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cross-Lingual RAG</title>
+<title>Polylang</title>
 <style>
 :root{
   --bg:#f6f5f1;--panel:#ffffff;--ink:#1d1d1b;--muted:#6b6a65;--line:#e3e1da;
@@ -66,7 +66,7 @@ th{color:var(--muted);font-weight:500;font-size:12px;text-transform:uppercase;le
 </head>
 <body>
 <header>
-  <h1>Cross-Lingual RAG <small id="version"></small></h1>
+  <h1>Polylang <small id="version"></small></h1>
   <nav>
     <button data-tab="ask" class="active">Ask</button>
     <button data-tab="docs">Documents</button>
@@ -266,8 +266,8 @@ $("#clearCacheBtn").onclick = async () => {
 };
 
 // boot
-$("#apiKey").value = store("rag_api_key") || "";
-$("#apiKey").onchange = () => store("rag_api_key", $("#apiKey").value.trim());
+$("#apiKey").value = store("polylang_api_key") || "";
+$("#apiKey").onchange = () => store("polylang_api_key", $("#apiKey").value.trim());
 api("/health").then(h => {
   $("#version").textContent = "v" + h.version;
   authRequired = h.auth_required; $("#keyBox").classList.toggle("hidden", !authRequired);

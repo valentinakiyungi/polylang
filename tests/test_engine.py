@@ -3,9 +3,9 @@ import threading
 
 import pytest
 
-from rag_engine import RAGEngine
-from rag_engine.cli import main as cli_main
-from rag_engine.llm import GenerationError
+from polylang import RAGEngine
+from polylang.cli import main as cli_main
+from polylang.llm import GenerationError
 
 
 def test_query_cache_miss_then_hit(loaded):

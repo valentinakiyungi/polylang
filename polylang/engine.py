@@ -14,15 +14,15 @@ from pathlib import Path
 
 import numpy as np
 
-from rag_engine.bm25 import BM25Index, minmax
-from rag_engine.cache import SemanticCache
-from rag_engine.chunking import chunk_text
-from rag_engine.config import Settings
-from rag_engine.embeddings import Embedder, build_embedder
-from rag_engine.llm import ExtractiveGenerator, GenerationError, Generator, Passage, build_generator, no_context_answer
-from rag_engine.loaders import LoadedDocument, load_bytes, load_path
-from rag_engine.text import detect_language
-from rag_engine.vector_store import VectorIndex
+from polylang.bm25 import BM25Index, minmax
+from polylang.cache import SemanticCache
+from polylang.chunking import chunk_text
+from polylang.config import Settings
+from polylang.embeddings import Embedder, build_embedder
+from polylang.llm import ExtractiveGenerator, GenerationError, Generator, Passage, build_generator, no_context_answer
+from polylang.loaders import LoadedDocument, load_bytes, load_path
+from polylang.text import detect_language
+from polylang.vector_store import VectorIndex
 
 log = logging.getLogger(__name__)
 STORE_VERSION = 1

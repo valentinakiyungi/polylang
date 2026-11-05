@@ -3,15 +3,15 @@ import json
 import numpy as np
 import pytest
 
-from rag_engine.bm25 import BM25Index, minmax
-from rag_engine.cache import SemanticCache
-from rag_engine.chunking import chunk_text
-from rag_engine.config import Settings
-from rag_engine.embeddings import HashingEmbedder
-from rag_engine.llm import ExtractiveGenerator, Passage
-from rag_engine.loaders import UnsupportedFileError, load_bytes
-from rag_engine.text import detect_language, tokenize
-from rag_engine.vector_store import VectorIndex
+from polylang.bm25 import BM25Index, minmax
+from polylang.cache import SemanticCache
+from polylang.chunking import chunk_text
+from polylang.config import Settings
+from polylang.embeddings import HashingEmbedder
+from polylang.llm import ExtractiveGenerator, Passage
+from polylang.loaders import UnsupportedFileError, load_bytes
+from polylang.text import detect_language, tokenize
+from polylang.vector_store import VectorIndex
 
 
 @pytest.mark.parametrize("text,lang", [
@@ -165,9 +165,9 @@ def test_loaders_docx():
 
 
 def test_settings_validation(monkeypatch):
-    monkeypatch.setenv("RAG_TOP_K", "7")
-    monkeypatch.setenv("RAG_CACHE_ENABLED", "false")
-    monkeypatch.setenv("RAG_CORS_ORIGINS", "http://a.com, http://b.com")
+    monkeypatch.setenv("POLYLANG_TOP_K", "7")
+    monkeypatch.setenv("POLYLANG_CACHE_ENABLED", "false")
+    monkeypatch.setenv("POLYLANG_CORS_ORIGINS", "http://a.com, http://b.com")
     s = Settings.from_env(embedding_backend="hashing")
     assert s.top_k == 7 and s.cache_enabled is False and s.cors_origins == ["http://a.com", "http://b.com"]
     with pytest.raises(ValueError):
